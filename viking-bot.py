@@ -26,11 +26,11 @@ class bot:
                     line = line.replace(" ", "").replace("\t", "").replace("'", "").replace('"', "")
                     # get the values
                     line = re.match('(\w+)=(.+)', line)
-                    # add to the object
+                    # add to the config object
                     self.config[line.group(1)] = line.group(2)
         # if no config found then exit
         else:
-            print("Config file wasn't found (./viking.conf)")
+            print("Config file wasn't found (./../viking.conf)")
             sys.exit()
 
         self.host = self.config['host']
@@ -82,10 +82,10 @@ class bot:
     def send(self, type, channel, message):
         if(type == ""):
             self.s.send(bytes("PRIVMSG %s :%s\r\n" % (channel, message), "UTF-8"))
+            print("PRIVMSG " + channel + ": " + message)
         else:
             self.s.send(bytes("%s %s :%s\r\n" % (type, channel, message), "UTF-8"))
-
-        print(type + " " + channel + ": " + message)
+            print(type + " " + channel + ": " + message)
 
     def auth(self):
         self.send("", "NickServ", "identify " + self.password)
@@ -107,22 +107,24 @@ class command:
 # was command written?
 def parse_msg(message):
 
-    command = message.group(5).replace("\r\n","")
+    # Make stuff more readable
+    nick = message.group(1) # used to find sender of private message
+    ident = message.group(2)
+    type = message.group(3)
+    channel = message.group(4)
+    command = message.group(5).replace("\r\n", "") # / message text
 
-    print(command)
-
-    # creator commands in privmessage
-    if(message.group(2) == vbot.owner and message.group(4) == vbot.nick):
+    # if owner sends commands through private message
+    if(ident == vbot.owner and channel == vbot.nick):
 
         if("join" in command):
             chan = command.split("#")
-            join_chan(chan[1])
-            print("joining #" + chan[1])
+            bot_do("join", chan[1])
         elif("part" in command):
             chan = command.split("#")
-            part_chan(chan[1])
-        elif(command == "quit"):
-            bot_quit()
+            bot_do("part", chan[1])
+        elif("quit" in command):
+            bot_do("quit", "")
 
     # command wherever
     if(command.startswith("-")):
@@ -133,17 +135,17 @@ def parse_msg(message):
 
         if(cmd == "g"):
             string = command.split('-g ')
-            search_google(string[1], message.group(4), "web")
+            search_google(string[1], channel, "web")
         elif(cmd == "gi"):
             string = command.split('-gi ')
-            search_google(string[1], message.group(4), "images")
+            search_google(string[1], channel, "images")
         elif(cmd == "imdb"):
             string = command.split('-imdb ')
-            search_imdb(string[1], message.group(4))
+            search_imdb(string[1], channel)
 
     # if mentioned or -help
     if(vbot.nick in command or command.startswith("-help")):
-        bot_help(message.group(1))
+        bot_help(nick)
 
 # bot functions
 def bot_help(sender):
@@ -198,23 +200,13 @@ def search_imdb(search_string, chan):
     vbot.send("", chan, string1)
     vbot.send("", chan, string2)
 
-
-def join_chan(chan):
-    vbot.s.send(bytes("JOIN #%s\r\n" % chan, "UTF-8"))
-    print("joined " + chan)
-
-def part_chan(chan):
-    vbot.s.send(bytes("PART #%s\r\n" % chan, "UTF-8"))
-    print("left " + chan)
-
-def priv_msg(nick, msg):
-    vbot.s.send(bytes("PRIVMSG %s :%s\r\n" % (nick, msg), "UTF-8"))
-
-def bot_complain(chan):
-    vbot.s.send(bytes("PRIVMSG %s :nah, fuck you\r\n" % chan, "UTF-8"))
-
-def bot_quit():
-    sys.exit()
+def bot_do(what, chan):
+    if(what == "join"):
+        vbot.send("JOIN", "#"+chan, "")
+    elif(what == "part"):
+        vbot.send("PART", "#"+chan, "")
+    elif(what == "quit"):
+        sys.exit()
 
 # commands
 google  =   command("-g", "-g <string> - Search google", "search_google(string, channel, g)")
