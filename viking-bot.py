@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-#
-# - TODO
-# Ask Bjorn about spotify thingy
-# IMDB bör inte printa skit om de är N/A
-# -imdb lost + <- without year kills him
-# -netflix is it on netflix
 
 import sys
 import socket
@@ -22,8 +16,8 @@ class bot:
         self.config = {}
 
         # if config file exists, parse it
-        if(os.path.isfile("./viking.conf")):
-            lines = [line.rstrip('\n') for line in open('./viking.conf')]
+        if(os.path.isfile("./../viking.conf")):
+            lines = [line.rstrip('\n') for line in open('./../viking.conf')]
 
             for line in lines:
                 # if comment or empty: pass
