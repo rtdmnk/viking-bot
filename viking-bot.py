@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import sys
 import socket
 import string
@@ -12,7 +11,6 @@ import os.path
 class bot:
 
     def __init__(self):
-
         self.config = {}
 
         # if config file exists, parse it
@@ -69,7 +67,7 @@ class bot:
 
             # if message recieved
             if(temp[0].find("PRIVMSG") > 0):
-                # get useful data from it and send it on
+                # get useful data from it and pass it on
                 # 1:nick, 2:ident, 3:type, 4:?, 5:message
                 message = re.search(':(.+)!.+@(.+) (\w+) (.+) :(.+)', temp[0])
                 parse_msg(message)
@@ -92,11 +90,7 @@ class bot:
     def auth(self):
         self.send("", "NickServ", "identify " + self.password)
 
-vbot = bot()
-vbot.connect()
-vbot.loop()
 
-sys.exit()
 # commands
 commands = []
 
@@ -118,7 +112,7 @@ def parse_msg(message):
     print(command)
 
     # creator commands in privmessage
-    if(message.group(2) == creator and message.group(4) == NICK):
+    if(message.group(2) == vbot.owner and message.group(4) == vbot.nick):
 
         if("join" in command):
             chan = command.split("#")
@@ -148,22 +142,15 @@ def parse_msg(message):
             search_imdb(string[1], message.group(4))
 
     # if mentioned or -help
-    if(NICK in command or command.startswith("-help")):
+    if(vbot.nick in command or command.startswith("-help")):
         bot_help(message.group(1))
 
 # bot functions
-def send(who, msg):
-    print(who + ": " + msg)
-    s.send(bytes("PRIVMSG %s :%s\r\n" % (who, msg), "UTF-8"))
-
-def authenticate():
-    send("NickServ", "identify " + password)
-
 def bot_help(sender):
-    send(sender, "In case you didn't know, I'm a bot, shocker. I can do the following:")
+    vbot.send("", sender, "In case you didn't know, I'm a bot, shocker. I can do the following:")
 
     for cmd in commands:
-        send(sender, cmd.helptxt)
+        vbot.send("", sender, cmd.helptxt)
 
 
 # replace this with ddg in secret
@@ -181,7 +168,7 @@ def search_google(search_string, chan, stype):
         data = "Jag fann inget"
         print("caught exception")
 
-    send(chan, data)
+    vbot.send("", chan, data)
 
 
 # http://www.omdbapi.com/
@@ -208,23 +195,23 @@ def search_imdb(search_string, chan):
     except (ValueError,IndexError,KeyError):
         data = "Jag fann inget"
 
-    send(chan, string1)
-    send(chan, string2)
+    vbot.send("", chan, string1)
+    vbot.send("", chan, string2)
 
 
 def join_chan(chan):
-    s.send(bytes("JOIN #%s\r\n" % chan, "UTF-8"))
+    vbot.s.send(bytes("JOIN #%s\r\n" % chan, "UTF-8"))
     print("joined " + chan)
 
 def part_chan(chan):
-    s.send(bytes("PART #%s\r\n" % chan, "UTF-8"))
+    vbot.s.send(bytes("PART #%s\r\n" % chan, "UTF-8"))
     print("left " + chan)
 
 def priv_msg(nick, msg):
-    s.send(bytes("PRIVMSG %s :%s\r\n" % (nick, msg), "UTF-8"))
+    vbot.s.send(bytes("PRIVMSG %s :%s\r\n" % (nick, msg), "UTF-8"))
 
 def bot_complain(chan):
-    s.send(bytes("PRIVMSG %s :nah, fuck you\r\n" % chan, "UTF-8"))
+    vbot.s.send(bytes("PRIVMSG %s :nah, fuck you\r\n" % chan, "UTF-8"))
 
 def bot_quit():
     sys.exit()
@@ -234,3 +221,8 @@ google  =   command("-g", "-g <string> - Search google", "search_google(string, 
 google_i=   command("-gi", "-gi <string> - Search google images", "google(string, channe, gi)")
 imdb    =   command("-imdb", "-imdb <name +year(optional)> - Search imdb", "search_imdb(string, channel)")
 bhelp   =   command("-help", "-help <command(optional)> - Display commands or help for a command", "bot_help(string, channel)")
+
+
+vbot = bot()
+vbot.connect()
+vbot.loop()
