@@ -195,7 +195,7 @@ def bot_do(what, chan):
 # replace this with ddg in secret
 # https://developers.google.com/image-search/v1/jsondevguide?hl=en
 def search_google(search_string, chan, stype):
-   try:
+    try:
         query = urllib.parse.urlencode({'q': search_string})
         url = 'https://ajax.googleapis.com/ajax/services/search/%s?v=1.0&%s' % (stype, query)
         search_response = urllib.request.urlopen(url)
@@ -236,7 +236,7 @@ def search_imdb(search_string, chan):
         return
 
 def search_wp(search_string, chan):
-   try:
+    try:
         query = urllib.parse.urlencode({'titles': search_string})
         url = 'https://en.wikipedia.org/w/api.php?format=json&formatversion=2&action=query&prop=extracts&exintro=&explaintext=&redirects&%s' % query
         search_response = urllib.request.urlopen(url)
