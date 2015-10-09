@@ -17,7 +17,7 @@ IRC bot written in Python 3
     owner = "totalawesomeuser"
     
     # logging
-    log_file = "viking.og"
+    log_file = "viking.log"
 
     # NickServ
     nickserv = true
