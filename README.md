@@ -5,6 +5,7 @@ IRC bot written in Python 3
 * Python 3
 
 ## Configuration example
+    # server stuff
     host = "irc.server.com"
     port = 6667
     
