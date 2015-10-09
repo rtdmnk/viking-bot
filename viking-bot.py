@@ -97,55 +97,60 @@ commands = []
 # command class
 class command:
 
-    def __init__(self, cmd, helptxt, execute):
-        self.cmd = cmd
+    def __init__(self, name, helptxt):
+        self.name = name
         self.helptxt = helptxt
-        self.execute = execute
 
         commands.append(self)
 
-# was command written?
-def parse_msg(message):
+    def execute(self, string, channel):
+        cmd = self.name
 
-    # Make stuff more readable
-    nick = message.group(1) # used to find sender of private message
-    ident = message.group(2)
-    type = message.group(3)
-    channel = message.group(4)
-    command = message.group(5).replace("\r\n", "") # / message text
+        if(cmd == "-g"):
+            search_google(string, channel, "web")
+        elif(cmd == "-gi"):
+            search_google(string, channel, "images")
+        elif(cmd == "-imdb"):
+            search_imdb(string, channel)
+        elif(cmd == "-wp"):
+            search_wp(string, channel)
+
+# was command written?
+def parse_msg(unparsed_msg):
+
+    # make stuff more readable
+    sender  =   unparsed_msg.group(1) # sender of message 
+    ident   =   unparsed_msg.group(2) # used to verify nickname if registered to nickserv
+    type    =   unparsed_msg.group(3) # we already know this is PRIVMSG
+    channel =   unparsed_msg.group(4) # where message was written, can also be a nickname
+    message =   unparsed_msg.group(5).replace("\r\n", "").replace("\r", "").replace("\n", "") # message string
 
     # if owner sends commands through private message
     if(ident == vbot.owner and channel == vbot.nick):
-
-        if("join" in command):
-            chan = command.split("#")
+        if("join" in message):
+            chan = message.split("#")
             bot_do("join", chan[1])
-        elif("part" in command):
-            chan = command.split("#")
+        elif("part" in message):
+            chan = message.split("#")
             bot_do("part", chan[1])
-        elif("quit" in command):
+        elif("quit" in message):
             bot_do("quit", "")
 
-    # command wherever
-    if(command.startswith("-")):
-
-        cmd = command.split('-')
-        cmd = cmd[1].split(' ')
-        cmd = cmd[0]
-
-        if(cmd == "g"):
-            string = command.split('-g ')
-            search_google(string[1], channel, "web")
-        elif(cmd == "gi"):
-            string = command.split('-gi ')
-            search_google(string[1], channel, "images")
-        elif(cmd == "imdb"):
-            string = command.split('-imdb ')
-            search_imdb(string[1], channel)
-
+    # if message seems to be a command
+    if(message.startswith("-") and not message.startswith("-help")):
+        try:
+            cmz = re.search("(-\w+)\s+(.+)", message)
+            cmd = cmz.group(1)
+            string = cmz.group(2)
+        except (AttributeError):
+            vbot.send("", channel, "Bad input, see -help if retarded")
+            return
+        for command in commands:
+            if(command.name == cmd):
+                command.execute(string, channel)
     # if mentioned or -help
-    if(vbot.nick in command or command.startswith("-help")):
-        bot_help(nick)
+    elif(vbot.nick in message or message.startswith("-help")):
+        bot_help(sender)
 
 # bot functions
 def bot_help(sender):
@@ -154,23 +159,29 @@ def bot_help(sender):
     for cmd in commands:
         vbot.send("", sender, cmd.helptxt)
 
+def bot_do(what, chan):
+    if(what == "join"):
+        vbot.send("JOIN", "#"+chan, "")
+    elif(what == "part"):
+        vbot.send("PART", "#"+chan, "")
+    elif(what == "quit"):
+        sys.exit()
 
 # replace this with ddg in secret
 # https://developers.google.com/image-search/v1/jsondevguide?hl=en
 def search_google(search_string, chan, stype):
     query = urllib.parse.urlencode({'q': search_string})
-    url = 'http://ajax.googleapis.com/ajax/services/search/%s?v=1.0&%s' % (stype, query)
+    url = 'https://ajax.googleapis.com/ajax/services/search/%s?v=1.0&%s' % (stype, query)
     search_response = urllib.request.urlopen(url)
     search_results = search_response.read().decode("utf8")
     results = json.loads(search_results)
-
     try:
         data = results['responseData']['results'][0]['unescapedUrl']
-    except (ValueError,IndexError):
-        data = "Jag fann inget"
-        print("caught exception")
-
-    vbot.send("", chan, data)
+        vbot.send("", chan, data)
+    except Exception as e:
+        vbot.send("", chan, "Jag fann inget")
+        error("search_google", e)
+        return
 
 
 # http://www.omdbapi.com/
@@ -181,10 +192,10 @@ def search_imdb(search_string, chan):
         search_string = search_string.split(" +")[0]
         query = urllib.parse.urlencode({'t': search_string})
         query2 = urllib.parse.urlencode({'y': year})
-        url = 'http://www.omdbapi.com/?%s&%s&tomatoes=true&plot=short&r=json' % (query, query2)
+        url = 'https://www.omdbapi.com/?%s&%s&tomatoes=true&plot=short&r=json' % (query, query2)
     else:
         query = urllib.parse.urlencode({'t': search_string})
-        url = 'http://www.omdbapi.com/?%s&tomatoes=true&plot=short&r=json' % query
+        url = 'https://www.omdbapi.com/?%s&tomatoes=true&plot=short&r=json' % query
 
     search_response = urllib.request.urlopen(url)
     search_results = search_response.read().decode("utf8")
@@ -194,27 +205,57 @@ def search_imdb(search_string, chan):
         data = results
         string1 = data['Title'] + " (" + data['Year'] + ") (" + data['Genre'] + ")"
         string2 = "[IMDB] " + data['imdbRating'] + "/10 [RT] " + data['tomatoMeter'] + "% - " + data['tomatoUserMeter'] + "% [META] " + data['Metascore'] + "/100 - " + data['Website']
-    except (ValueError,IndexError,KeyError):
-        data = "Jag fann inget"
+        vbot.send("", chan, string1)
+        vbot.send("", chan, string2)
+    except Exception as e:
+        vbot.send("", chan, "Jag fann inget")
+        error("search_imdb", e)
+        return
 
-    vbot.send("", chan, string1)
-    vbot.send("", chan, string2)
+def search_wp(search_string, chan):
+    query = urllib.parse.urlencode({'titles': search_string})
+    url = 'https://en.wikipedia.org/w/api.php?format=json&formatversion=2&action=query&prop=extracts&exintro=&explaintext=&redirects&%s' % query
+    search_response = urllib.request.urlopen(url)
+    search_results = search_response.read().decode("utf8")
+    results = json.loads(search_results)
+    try:
+        title = results['query']['pages'][0]['title']
+        summary = results['query']['pages'][0]['extract'][:100] + "..."
+        data = title + " [https://en.wikipedia.org/wiki/" + title +"]"
+        vbot.send("", chan, data)
+        vbot.send("", chan, summary)
+    except Exception as e:
+        vbot.send("", chan, "Jag fann inge")
+        error("search_wp", e)
+        return
 
-def bot_do(what, chan):
-    if(what == "join"):
-        vbot.send("JOIN", "#"+chan, "")
-    elif(what == "part"):
-        vbot.send("PART", "#"+chan, "")
-    elif(what == "quit"):
-        sys.exit()
+def error(place, e):
+    print('\033[1;41m[%s] Caught exception: %s\033[1;m' % (place,e))
 
 # commands
-google  =   command("-g", "-g <string> - Search google", "search_google(string, channel, g)")
-google_i=   command("-gi", "-gi <string> - Search google images", "google(string, channe, gi)")
-imdb    =   command("-imdb", "-imdb <name +year(optional)> - Search imdb", "search_imdb(string, channel)")
-bhelp   =   command("-help", "-help <command(optional)> - Display commands or help for a command", "bot_help(string, channel)")
+# search engines
+google      =   command("-g",
+                    "-g         <string>                    - Search google")
+google_i    =   command("-gi",
+                    "-gi        <string>                    - Search google images")
+imdb        =   command("-imdb",
+                    "-imdb      <name +year(optional)>      - Search imdb")
+wp          =   command("-wp",
+                    "-wp        <string>                    - Search wikipedia")
 
+#
+# misc
+poem        =   command("-poem",
+                    "-poem                                  - Links the poem of the day")
+quote       =   command("-quote",
+                    "-quote     <string(optional)>          - Search for quote, leave blank for QoTD or write 'random'")
 
+#
+# bot related
+bhelp       =   command("-help",
+                    "-help      <command(optional)>         - Display commands or help for a command")
+
+# start it all
 vbot = bot()
 vbot.connect()
 vbot.loop()
