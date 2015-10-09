@@ -3,6 +3,7 @@ IRC bot written in Python 3
 
 ## Requirements
 * Python 3
+* [Beautiful Soup](http://www.crummy.com/software/BeautifulSoup/) (only used for command -poem)
 
 ## Configuration example
     # server stuff

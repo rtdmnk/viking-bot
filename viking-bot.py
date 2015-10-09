@@ -7,6 +7,10 @@ import urllib.parse
 import urllib.request
 import json
 import os.path
+import time
+import ssl
+from bs4 import BeautifulSoup
+from urllib.request import urlopen
 
 class bot:
 
@@ -42,12 +46,15 @@ class bot:
 
         self.owner = self.config['owner']
 
+        self.log = self.config['log_file']
+
         if(self.config['nickserv']):
             self.password = self.config['password']
 
     # Connect and set user information
     def connect(self):
-        self.s = socket.socket( )
+        simply_s = socket.socket( )
+        self.s = ssl.wrap_socket(simply_s)
         self.s.connect((self.host, self.port))
 
         self.s.send(bytes("NICK %s\r\n" % self.nick, "UTF-8"))
@@ -66,12 +73,12 @@ class bot:
             print(temp[0])
 
             # if message recieved
-            if(temp[0].find("PRIVMSG") > 0):
+            if(temp[0].find("PRIVMSG") > 0 and not temp[0].startswith(":" + self.host)):
                 # get useful data from it and pass it on
                 # 1:nick, 2:ident, 3:type, 4:?, 5:message
                 message = re.search(':(.+)!.+@(.+) (\w+) (.+) :(.+)', temp[0])
                 parse_msg(message)
-            # if nickserv complains and should complain
+            # if nickserv complains and bot is a registered user
             elif("NickServ" in temp[0] and "registered" in temp[0] and self.password):
                 self.auth()
             # if ping
@@ -89,6 +96,10 @@ class bot:
 
     def auth(self):
         self.send("", "NickServ", "identify " + self.password)
+
+    def quit(self):
+        self.s.close()
+        sys.exit()
 
 
 # commands
@@ -114,6 +125,10 @@ class command:
             search_imdb(string, channel)
         elif(cmd == "-wp"):
             search_wp(string, channel)
+        elif(cmd == "-poem"):
+            get_poem(channel)
+        elif(cmd == "-quote"):
+            get_quote(channel)
 
 # was command written?
 def parse_msg(unparsed_msg):
@@ -139,22 +154,32 @@ def parse_msg(unparsed_msg):
     # if message seems to be a command
     if(message.startswith("-") and not message.startswith("-help")):
         try:
-            cmz = re.search("(-\w+)\s+(.+)", message)
+            cmz = re.search("(-\w+)", message)
             cmd = cmz.group(1)
-            string = cmz.group(2)
-        except (AttributeError):
-            vbot.send("", channel, "Bad input, see -help if retarded")
+
+            # if command doesnt need input
+            if(cmd == "-poem" or cmd == "-quote"):
+                string = ""
+            else:
+                cmz = re.search("(-\w+)\s+(.+)", message)
+                string = cmz.group(2)
+
+        except Exception as e:
+            vbot.send("", channel, "Bad input, see -help")
+            error("parse_msg", e)
             return
+
         for command in commands:
             if(command.name == cmd):
                 command.execute(string, channel)
+
     # if mentioned or -help
-    elif(vbot.nick in message or message.startswith("-help")):
+    elif(message.startswith("-help")):
         bot_help(sender)
 
 # bot functions
 def bot_help(sender):
-    vbot.send("", sender, "In case you didn't know, I'm a bot, shocker. I can do the following:")
+    vbot.send("", sender, "In case you didn't know, I'm a (beta) bot, shocker. I can do the following:")
 
     for cmd in commands:
         vbot.send("", sender, cmd.helptxt)
@@ -165,7 +190,7 @@ def bot_do(what, chan):
     elif(what == "part"):
         vbot.send("PART", "#"+chan, "")
     elif(what == "quit"):
-        sys.exit()
+        vbot.quit()
 
 # replace this with ddg in secret
 # https://developers.google.com/image-search/v1/jsondevguide?hl=en
@@ -182,7 +207,6 @@ def search_google(search_string, chan, stype):
         vbot.send("", chan, "Jag fann inget")
         error("search_google", e)
         return
-
 
 # http://www.omdbapi.com/
 def search_imdb(search_string, chan):
@@ -229,11 +253,44 @@ def search_wp(search_string, chan):
         error("search_wp", e)
         return
 
+def get_poem(chan):
+    url = 'http://poems.com/today.php'
+    html = urlopen(url)
+    soup = BeautifulSoup(html, 'html.parser')
+
+    title = soup.find(id="page_title").text
+    author = soup.find(id="byline").a.text
+
+    data = "Todays poem: '" + title + "' by " + author + " [" + url + "]"
+    vbot.send("", chan, data)
+
+def get_quote(chan):
+    url = 'http://api.theysaidso.com/qod.json'
+    response = urllib.request.urlopen(url)
+    results = response.read().decode("utf8")
+    results = json.loads(results)
+    try:
+        quote = results['contents']['quotes'][0]['quote']
+        author = results['contents']['quotes'][0]['author']
+        data = "'" + quote + "' - " + author + ' [https://theysaidso.com/]'
+        vbot.send("", chan, data)
+    except Exception as e:
+        vbot.send("", chan, "Nåt gick fel")
+        error("get_quote", e)
+        return
+
 def error(place, e):
-    print('\033[1;41m[%s] Caught exception: %s\033[1;m' % (place,e))
+    date = time.strftime("%D-%H:%M")
+    # print error to term
+    print('\033[1;41m[%s|%s] Caught exception: %s\033[1;m' % (date,place,e))
+    # if log file specified
+    if(vbot.log):
+        with open(vbot.log, 'a') as log:
+            log.write('[%s|%s] Caught exception: %s\n' % (date,place,e))
 
 # commands
 # search engines
+#
 google      =   command("-g",
                     "-g         <string>                    - Search google")
 google_i    =   command("-gi",
@@ -245,13 +302,15 @@ wp          =   command("-wp",
 
 #
 # misc
+#
 poem        =   command("-poem",
                     "-poem                                  - Links the poem of the day")
 quote       =   command("-quote",
-                    "-quote     <string(optional)>          - Search for quote, leave blank for QoTD or write 'random'")
+                    "-quote                                 - Get quote of the day")
 
 #
 # bot related
+#
 bhelp       =   command("-help",
                     "-help      <command(optional)>         - Display commands or help for a command")
 
