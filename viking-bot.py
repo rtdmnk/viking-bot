@@ -195,12 +195,12 @@ def bot_do(what, chan):
 # replace this with ddg in secret
 # https://developers.google.com/image-search/v1/jsondevguide?hl=en
 def search_google(search_string, chan, stype):
-    query = urllib.parse.urlencode({'q': search_string})
-    url = 'https://ajax.googleapis.com/ajax/services/search/%s?v=1.0&%s' % (stype, query)
-    search_response = urllib.request.urlopen(url)
-    search_results = search_response.read().decode("utf8")
-    results = json.loads(search_results)
-    try:
+   try:
+        query = urllib.parse.urlencode({'q': search_string})
+        url = 'https://ajax.googleapis.com/ajax/services/search/%s?v=1.0&%s' % (stype, query)
+        search_response = urllib.request.urlopen(url)
+        search_results = search_response.read().decode("utf8")
+        results = json.loads(search_results)
         data = results['responseData']['results'][0]['unescapedUrl']
         vbot.send("", chan, data)
     except Exception as e:
@@ -210,22 +210,21 @@ def search_google(search_string, chan, stype):
 
 # http://www.omdbapi.com/
 def search_imdb(search_string, chan):
-
-    if("+" in search_string):
-        year = search_string.split("+")[1]
-        search_string = search_string.split(" +")[0]
-        query = urllib.parse.urlencode({'t': search_string})
-        query2 = urllib.parse.urlencode({'y': year})
-        url = 'https://www.omdbapi.com/?%s&%s&tomatoes=true&plot=short&r=json' % (query, query2)
-    else:
-        query = urllib.parse.urlencode({'t': search_string})
-        url = 'https://www.omdbapi.com/?%s&tomatoes=true&plot=short&r=json' % query
-
-    search_response = urllib.request.urlopen(url)
-    search_results = search_response.read().decode("utf8")
-    results = json.loads(search_results)
-
     try:
+        if("+" in search_string):
+            year = search_string.split("+")[1]
+            search_string = search_string.split(" +")[0]
+            query = urllib.parse.urlencode({'t': search_string})
+            query2 = urllib.parse.urlencode({'y': year})
+            url = 'https://www.omdbapi.com/?%s&%s&tomatoes=true&plot=short&r=json' % (query, query2)
+        else:
+            query = urllib.parse.urlencode({'t': search_string})
+            url = 'https://www.omdbapi.com/?%s&tomatoes=true&plot=short&r=json' % query
+
+        search_response = urllib.request.urlopen(url)
+        search_results = search_response.read().decode("utf8")
+        results = json.loads(search_results)
+
         data = results
         string1 = data['Title'] + " (" + data['Year'] + ") (" + data['Genre'] + ")"
         string2 = "[IMDB] " + data['imdbRating'] + "/10 [RT] " + data['tomatoMeter'] + "% - " + data['tomatoUserMeter'] + "% [META] " + data['Metascore'] + "/100 - " + data['Website']
@@ -237,12 +236,13 @@ def search_imdb(search_string, chan):
         return
 
 def search_wp(search_string, chan):
-    query = urllib.parse.urlencode({'titles': search_string})
-    url = 'https://en.wikipedia.org/w/api.php?format=json&formatversion=2&action=query&prop=extracts&exintro=&explaintext=&redirects&%s' % query
-    search_response = urllib.request.urlopen(url)
-    search_results = search_response.read().decode("utf8")
-    results = json.loads(search_results)
-    try:
+   try:
+        query = urllib.parse.urlencode({'titles': search_string})
+        url = 'https://en.wikipedia.org/w/api.php?format=json&formatversion=2&action=query&prop=extracts&exintro=&explaintext=&redirects&%s' % query
+        search_response = urllib.request.urlopen(url)
+        search_results = search_response.read().decode("utf8")
+        results = json.loads(search_results)
+
         title = results['query']['pages'][0]['title']
         summary = results['query']['pages'][0]['extract'][:100] + "..."
         data = title + " [https://en.wikipedia.org/wiki/" + title +"]"
