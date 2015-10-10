@@ -6,7 +6,7 @@ IRC bot written in Python 3
 * [Beautiful Soup](http://www.crummy.com/software/BeautifulSoup/) (only used for command -poem)
 
 ## Configuration example
-    # Server info 
+    ``# Server info 
     host = "irc.server.com"
     # + for ssl, e.g: +6697
     port = 6667
@@ -23,4 +23,4 @@ IRC bot written in Python 3
 
     # NickServ
     nickserv = True
-    password = "supersecret"
+    password = "supersecret"``
