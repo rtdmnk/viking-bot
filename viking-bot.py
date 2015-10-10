@@ -79,8 +79,6 @@ class bot:
                 print("quitting")
                 sys.exit()
 
-
-
         self.commands()
 
     def commands(self):
