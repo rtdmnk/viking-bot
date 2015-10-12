@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys, getopt, re, time, os.path, string, json
+import sys, getopt, re, time, os.path, string, json, traceback
 import socket, ssl
 import urllib.parse, urllib.request
 from bs4 import BeautifulSoup
@@ -7,6 +7,7 @@ from urllib.request import urlopen
 
 # globals
 config_file = ""
+verbose = False
 commands = []
 
 class bot:
@@ -82,7 +83,6 @@ class bot:
         self.commands()
 
     def commands(self):
-        # commands
         # search engines
         #
         google      = command("-g",
@@ -133,7 +133,7 @@ class bot:
             # print recieved messages
             print(temp[0])
 
-            # if message recieved
+            # if chat message
             if(temp[0].find("PRIVMSG") > 0 and not temp[0].startswith(":" + self.host)):
                 # parse it
                 # 1:nick, 2:ident, 3:type, 4:?, 5:message
@@ -227,6 +227,8 @@ def bot_help(sender):
     for cmd in commands:
         vbot.send("", sender, cmd.helptxt)
 
+    vbot.send("", sender, "------------------------------------\nSource - https://github.com/rtdmnk/viking-bot")
+
 def bot_do(what, chan):
     if(what == "join"):
         vbot.send("JOIN", "#"+chan, "")
@@ -288,7 +290,12 @@ def search_wp(search_string, chan):
 
         title = results['query']['pages'][0]['title']
         summary = results['query']['pages'][0]['extract']
-        summary = re.match("^(.\.[A-z]\..+?)\.\s", summary).group(1) + "."
+
+        # ugly but works
+        try:
+            summary = re.match("^(.\.[A-z]\..+?)\.\s", summary).group(1) + "."
+        except Exception as e:
+            summary = re.match("^(.+?)\.\s", summary).group(1) + "."
 
         # if summary is over 160 chars, shorten
         if(len(summary) > 160):
@@ -339,6 +346,8 @@ def error(place, e):
     date = time.strftime("%D-%H:%M")
     # print error to term
     print('\033[1;41m[%s|%s] Caught exception: %s\033[1;m' % (date,place,e))
+    if(verbose):
+        traceback.print_exc()
     # if log file specified
     try:
         if(vbot.log):
@@ -355,12 +364,11 @@ def check_args():
         print(err) # will print something like "option -a not recognized"
         usage()
         sys.exit(2)
-    output = None
-    verbose = False
     for o, a in opts:
-        #if o == "-v":
-        #    verbose = True
-        if o in ("-c", "--config"):
+        if o == "-v":
+            global verbose
+            verbose = True
+        elif o in ("-c", "--config"):
             global config_file
             config_file = a
         else:

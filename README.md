@@ -1,5 +1,6 @@
 # viking-bot
 IRC bot written in Python 3
+Command line arguments -v(erbose), prints traceback for exceptions to command line. -c(onfig), point to configuration file (standard is ./vikingBot.conf)
 
 ## Requirements
 * Python 3
