@@ -227,7 +227,8 @@ def bot_help(sender):
     for cmd in commands:
         vbot.send("", sender, cmd.helptxt)
 
-    vbot.send("", sender, "------------------------------------\nSource - https://github.com/rtdmnk/viking-bot")
+    vbot.send("", sender, "------------------------------------")
+    vbot.send("", sender, "Source - https://github.com/rtdmnk/viking-bot")
 
 def bot_do(what, chan):
     if(what == "join"):
