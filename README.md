@@ -7,6 +7,7 @@ Command line arguments -v(erbose), prints traceback for exceptions to command li
 * [Beautiful Soup](http://www.crummy.com/software/BeautifulSoup/) (only used for command -poem)
 
 ## Configuration example
+    # ./bot.conf
     # Server info 
     host = "irc.server.com"
     port = 6667 # + for ssl, e.g: +6697
