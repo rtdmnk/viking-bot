@@ -17,25 +17,24 @@ class bot:
         global config_file
 
         # Dummy values
-        self.host = "chat.freenode.com"
-        self.port = 6667
-        self.ssl = False
+        self.config['host'] = "chat.freenode.com"
+        self.config['port'] = 6667
 
-        self.nick = "VikingIRCBot"
-        self.ident = "info"
-        self.realname = "Amanita Muscaria"
+        self.config['nick'] = "VikingIRCBot"
+        self.config['ident'] = "info"
+        self.config['realname'] = "Amanita Muscaria"
 
-        self.owner = "Oden"
-        self.log = ""
+        self.config['owner'] = "Oden"
+        self.config['log_file'] = "bot.log"
 
-        self.nickserv = False
+        self.config['nickserv'] = False
 
 
         # if config file exists, parse it
         if(config_file):
             pass
         else:
-            config_file = "./vikingBot.conf"
+            config_file = "bot.conf"
         if(os.path.isfile(config_file)):
             lines = [line.rstrip('\n') for line in open(config_file)]
 
@@ -46,13 +45,21 @@ class bot:
                 else:
                     # parse, get values and add it to the config object
                     line = line.replace(" ", "").replace("\t", "").replace("'", "").replace('"', "")
-                    line = re.match('(\w+)=(.+)', line)
+                    try:
+                        # if comment in line, remove
+                        if "#" in line:
+                            line = line.split("#")[0]
+
+                        # get values
+                        line = re.match('(\w+)=(.+)', line)
+                    except Exception as e:
+                        string = input("failed to read config at:", line)
+                        sys.exit()
+
                     self.config[line.group(1)] = line.group(2)
 
             # Put config to corresponding variables
             self.host = self.config['host']
-
-
             self.port = int(self.config['port'])
 
             self.nick = self.config['nick']
@@ -70,10 +77,21 @@ class bot:
 
             if(self.nickserv):
                 self.password = self.config['password']
-        # if no config found then exit
+
+            for line in self.config:
+                print(line, "=", self.config[line])
+
+            # print settings, ask for green light
+            string = input("use these settings? [y/n]\n")
+            if string.lower() == "y":
+                pass
+            else:
+                sys.exit()
+
+        # if no config found, ask if use dummy or quit
         else:
             print("Config file wasn't found (" + config_file + ")")
-            string = input("Use dummy settings? [y/n]")
+            string = input("Use dummy settings? [y/n]\n")
             if(string.lower() == "y"):
                 pass
             else:
@@ -128,7 +146,7 @@ class bot:
             # fetch message, parse it
             readbuffer = readbuffer+self.s.recv(1024).decode("UTF-8")
             temp = str.split(readbuffer, "\n")
-            readbuffer=temp.pop( )
+            readbuffer = temp.pop( )
 
             # print recieved messages
             print(temp[0])
@@ -136,24 +154,31 @@ class bot:
             # if chat message
             if(temp[0].find("PRIVMSG") > 0 and not temp[0].startswith(":" + self.host)):
                 # parse it
-                # 1:nick, 2:ident, 3:type, 4:?, 5:message
+                # 1:nick, 2:ident, 3:type, 4:destination, 5:message
                 msgbuffer = re.search(':(.+)!.+@(.+) (\w+) (.+) :(.+)', temp[0])
-                sender  =   msgbuffer.group(1) # sender of message 
-                ident   =   msgbuffer.group(2) # used to verify nickname if registered to nickserv
-                type    =   msgbuffer.group(3) # we already know this is PRIVMSG
-                channel =   msgbuffer.group(4) # where message was written, can also be a nickname
-                message =   msgbuffer.group(5).replace("\r\n", "").replace("\r", "").replace("\n", "") # message string
+                try:
+                    sender  =   msgbuffer.group(1) # sender of message 
+                    ident   =   msgbuffer.group(2) # used to verify nickname if registered to nickserv
+                    type    =   msgbuffer.group(3) # we already know this is PRIVMSG
+                    channel =   msgbuffer.group(4) # destination, can also be nickname
+                    message =   msgbuffer.group(5).replace("\r\n", "").replace("\r", "").replace("\n", "") # message string
+                except Exception as e:
+                    sender  =   ""
+                    ident   =   ""
+                    type    =   ""
+                    channel =   ""
+                    message =   ""
 
                 # if owner sends commands through private message
                 if(ident == self.owner and channel == self.nick):
                     if("join" in message):
                         chan = message.split("#")
-                        bot_do("join", chan[1])
+                        vbot.send("JOIN", "#"+chan, "")
                     elif("part" in message):
                         chan = message.split("#")
-                        bot_do("part", chan[1])
+                        vbot.send("PART", "#"+chan, "")
                     elif("quit" in message):
-                        bot_do("quit", "")
+                        vbot.quit()
 
                 # if message seems to be a command
                 if(message.startswith("-")):
@@ -229,14 +254,6 @@ def bot_help(sender):
 
     vbot.send("", sender, "------------------------------------")
     vbot.send("", sender, "Source - https://github.com/rtdmnk/viking-bot")
-
-def bot_do(what, chan):
-    if(what == "join"):
-        vbot.send("JOIN", "#"+chan, "")
-    elif(what == "part"):
-        vbot.send("PART", "#"+chan, "")
-    elif(what == "quit"):
-        vbot.quit()
 
 # replace this with ddg in secret
 # https://developers.google.com/image-search/v1/jsondevguide?hl=en
@@ -347,8 +364,10 @@ def error(place, e):
     date = time.strftime("%D-%H:%M")
     # print error to term
     print('\033[1;41m[%s|%s] Caught exception: %s\033[1;m' % (date,place,e))
+
     if(verbose):
         traceback.print_exc()
+
     # if log file specified
     try:
         if(vbot.log):
